@@ -337,33 +337,23 @@ public:
 
         dc.SetFont(m_font_action);
         dc.SetTextForeground(m_progress_text_color);
-
-        const wxString progress_text = wxString::Format("%d%%", m_progress);
-        const wxSize percent_size = dc.GetTextExtent(progress_text);
-        const int text_gap = FromDIP(12);
-        const int text_y = progress_rc.GetBottom() + FromDIP(4);
-        const wxRect action_rc(progress_rc.GetLeft(), text_y, std::max(0, progress_rc.GetWidth() - percent_size.x - text_gap), percent_size.y);
-        const wxRect percent_rc(progress_rc.GetLeft(), text_y, progress_rc.GetWidth(), percent_size.y);
-
-        dc.DrawLabel(m_text_action, action_rc, wxALIGN_LEFT | wxALIGN_CENTER_VERTICAL);
-        dc.DrawLabel(progress_text, percent_rc, wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL);
+        wxRect action_rc(0, 0, c_sz.GetWidth(), 0);
+        action_rc.y      = c_sz.GetHeight() * 0.88;
+        action_rc.height = dc.GetTextExtent(m_text_action).GetHeight();
+        dc.DrawLabel(m_text_action, action_rc, wxALIGN_CENTER);
     }
 
     void draw_progress_bar(wxDC& dc, const wxRect& progress_rc)
     {
-        const int progress_border = FromDIP(1);
-        const int inner_width = std::max(0, progress_rc.GetWidth() - 2 * progress_border);
-        const int inner_height = std::max(0, progress_rc.GetHeight() - 2 * progress_border);
-        const int fill_width = inner_width * m_progress / 100;
+        const int fill_width = progress_rc.GetWidth() * m_progress / 100;
 
-        dc.SetPen(wxPen(m_progress_border_color, progress_border));
+        dc.SetPen(*wxTRANSPARENT_PEN);
         dc.SetBrush(wxBrush(m_progress_bg_color));
         dc.DrawRectangle(progress_rc);
 
         if (fill_width > 0) {
-            dc.SetPen(*wxTRANSPARENT_PEN);
             dc.SetBrush(wxBrush(m_progress_fg_color));
-            dc.DrawRectangle(progress_rc.GetLeft() + progress_border, progress_rc.GetTop() + progress_border, fill_width, inner_height);
+            dc.DrawRectangle(progress_rc.GetLeft(), progress_rc.GetTop(), fill_width, progress_rc.GetHeight());
         }
     }
 
@@ -390,12 +380,10 @@ public:
     wxRect progress_bar_rect() const
     {
         const wxSize c_sz = m_window->GetClientSize();
-        const int progress_width  = std::min(FromDIP(360), c_sz.GetWidth() - FromDIP(64));
-        const int progress_height = FromDIP(18);
-        const int progress_x      = (c_sz.GetWidth() - progress_width) / 2;
-        const int progress_y      = c_sz.GetHeight() * 0.82;
+        const int progress_height = FromDIP(6);
+        const int progress_y      = c_sz.GetHeight() - progress_height;
 
-        return wxRect(progress_x, progress_y, progress_width, progress_height);
+        return wxRect(0, progress_y, c_sz.GetWidth(), progress_height);
     }
 
     // Orca: keep the splash alive until it is explicitly destroyed.
@@ -432,7 +420,6 @@ private:
     wxColour m_bg_color;
     wxColour m_progress_bg_color = StateColor::darkModeColorFor(wxColour("#E3E3E3"));
     wxColour m_progress_fg_color = StateColor::darkModeColorFor(wxColour("#009688"));
-    wxColour m_progress_border_color = StateColor::darkModeColorFor(wxColour("#B0B0B0"));
     wxColour m_progress_text_color = StateColor::darkModeColorFor(wxColour("#909090"));
 
     wxString m_text_version = GUI_App::format_display_version();
