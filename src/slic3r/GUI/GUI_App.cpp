@@ -324,23 +324,22 @@ public:
         if (m_logo_bmp.IsOk())
             dc.DrawBitmap(m_logo_bmp, 0, 0, true);
 
-        const wxRect progress_rc = progress_bar_rect();
-
-        wxRect version_rc(0, 0, c_sz.GetWidth(), 0);
-        dc.SetFont(m_font_version);
+        wxRect rc = wxRect(0, 0, c_sz.GetWidth(), 0);
         dc.SetTextForeground(m_fg_color);
-        version_rc.y      = c_sz.GetHeight() * 0.7;
-        version_rc.height = dc.GetTextExtent(m_text_version).GetHeight();
-        dc.DrawLabel(m_text_version, version_rc, wxALIGN_CENTER);
 
-        draw_progress_bar(dc, progress_rc);
+        dc.SetFont(m_font_version);
+        rc.y      = c_sz.GetHeight() * 0.72;
+        rc.height = dc.GetTextExtent(m_text_version).GetHeight();
+        dc.DrawLabel(m_text_version, rc, wxALIGN_CENTER);
 
         dc.SetFont(m_font_action);
-        dc.SetTextForeground(m_progress_text_color);
-        wxRect action_rc(0, 0, c_sz.GetWidth(), 0);
-        action_rc.y      = c_sz.GetHeight() * 0.88;
-        action_rc.height = dc.GetTextExtent(m_text_action).GetHeight();
-        dc.DrawLabel(m_text_action, action_rc, wxALIGN_CENTER);
+        rc.y      = c_sz.GetHeight() * 0.88;
+        rc.height = dc.GetTextExtent(m_text_action).GetHeight();
+        dc.DrawLabel(m_text_action, rc, wxALIGN_CENTER);
+
+        const int progress_height = FromDIP(6);
+        const int progress_y      = c_sz.GetHeight() - progress_height;
+        draw_progress_bar(dc, wxRect(0, progress_y, c_sz.GetWidth(), progress_height));
     }
 
     void draw_progress_bar(wxDC& dc, const wxRect& progress_rc)
@@ -377,15 +376,6 @@ public:
 #endif
     }
 
-    wxRect progress_bar_rect() const
-    {
-        const wxSize c_sz = m_window->GetClientSize();
-        const int progress_height = FromDIP(6);
-        const int progress_y      = c_sz.GetHeight() - progress_height;
-
-        return wxRect(0, progress_y, c_sz.GetWidth(), progress_height);
-    }
-
     // Orca: keep the splash alive until it is explicitly destroyed.
     // wxSplashScreen installs an application-wide event filter that calls
     // Close() (which Destroy()s the window) on ANY key press or mouse-button
@@ -420,14 +410,13 @@ private:
     wxColour m_bg_color;
     wxColour m_progress_bg_color = StateColor::darkModeColorFor(wxColour("#E3E3E3"));
     wxColour m_progress_fg_color = StateColor::darkModeColorFor(wxColour("#009688"));
-    wxColour m_progress_text_color = StateColor::darkModeColorFor(wxColour("#909090"));
 
     wxString m_text_version = GUI_App::format_display_version();
     wxString m_text_action  = _L("Loading configuration") + dots;
     int      m_progress     = 0;
 
     wxFont m_font_version = Label::Body_16;
-    wxFont m_font_action  = Label::Body_13;
+    wxFont m_font_action  = Label::Body_16;
 };
 
 #ifdef __linux__
