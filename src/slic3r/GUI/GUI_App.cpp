@@ -304,6 +304,9 @@ public:
 
         m_bg_color = StateColor::darkModeColorFor(wxColour("#FFFFFF"));
         m_fg_color = StateColor::darkModeColorFor(wxColour("#6B6A6A"));
+        m_progress_bg_color = StateColor::darkModeColorFor(wxColour("#DFDFDF"));
+        m_progress_fg_color = StateColor::darkModeColorFor(wxColour("#009688"));
+        m_progress_h = FromDIP(6);
         bool dark_mode = m_fg_color != wxColour("#6B6A6A");
         wxSize sz  = m_window->GetClientSize();
         BitmapCache bmp_cache;
@@ -333,47 +336,36 @@ public:
         dc.DrawLabel(m_text_version, rc, wxALIGN_CENTER);
 
         dc.SetFont(m_font_action);
-        rc.y      = c_sz.GetHeight() * 0.88;
+        rc.y      = c_sz.GetHeight() * 0.85;
         rc.height = dc.GetTextExtent(m_text_action).GetHeight();
         dc.DrawLabel(m_text_action, rc, wxALIGN_CENTER);
 
-        const int progress_height = FromDIP(6);
-        const int progress_y      = c_sz.GetHeight() - progress_height;
-        draw_progress_bar(dc, wxRect(0, progress_y, c_sz.GetWidth(), progress_height));
-    }
-
-    void draw_progress_bar(wxDC& dc, const wxRect& progress_rc)
-    {
-        const int fill_width = progress_rc.GetWidth() * m_progress / 100;
-
+        const wxRect progress_rc(0, c_sz.GetHeight() - m_progress_h, c_sz.GetWidth(), m_progress_h);
+                
         dc.SetPen(*wxTRANSPARENT_PEN);
         dc.SetBrush(wxBrush(m_progress_bg_color));
         dc.DrawRectangle(progress_rc);
 
+        const int fill_width = progress_rc.GetWidth() * m_progress * 0.01;
         if (fill_width > 0) {
             dc.SetBrush(wxBrush(m_progress_fg_color));
-            dc.DrawRectangle(progress_rc.GetLeft(), progress_rc.GetTop(), fill_width, progress_rc.GetHeight());
+            dc.DrawRectangle(0, progress_rc.GetTop(), fill_width, m_progress_h);
         }
     }
 
-    void SetText(const wxString& text)
+    void SetText(const wxString& text, int progress)
     {
-        SetProgressText(text, m_progress);
-    }
-
-    void SetProgressText(const wxString& text, int progress)
-    {
-        if (!text.empty()) {
+        int calc_progress = std::max(m_progress, std::clamp(progress, 0, 100));
+        if (m_text_action != text || m_progress != calc_progress){
             m_text_action = text;
-        }
-
-        m_progress = std::max(m_progress, std::clamp(progress, 0, 100));
-        m_window->Refresh();
-        m_window->Update();
+            m_progress = calc_progress;
+            m_window->Refresh();
+            m_window->Update();
 #ifdef __WXOSX__
         // without this code splash screen wouldn't be updated under OSX
         wxYield();
 #endif
+        }
     }
 
     // Orca: keep the splash alive until it is explicitly destroyed.
@@ -408,12 +400,13 @@ private:
     wxBitmap m_logo_bmp;
     wxColour m_fg_color;
     wxColour m_bg_color;
-    wxColour m_progress_bg_color = StateColor::darkModeColorFor(wxColour("#E3E3E3"));
-    wxColour m_progress_fg_color = StateColor::darkModeColorFor(wxColour("#009688"));
+    wxColour m_progress_bg_color;
+    wxColour m_progress_fg_color;
 
     wxString m_text_version = GUI_App::format_display_version();
     wxString m_text_action  = _L("Loading configuration") + dots;
     int      m_progress     = 0;
+    int      m_progress_h   = 6;
 
     wxFont m_font_version = Label::Body_16;
     wxFont m_font_action  = Label::Body_16;
@@ -2820,7 +2813,7 @@ bool GUI_App::on_init_inner()
         //BBS use BBL splashScreen
         scrn = new SplashScreen(splashscreen_pos);
         wxYield();
-        scrn->SetProgressText(_L("Loading configuration") + dots, 5);
+        scrn->SetText(_L("Loading configuration") + dots, 5);
     }
 
     BOOST_LOG_TRIVIAL(info) << "loading systen presets...";
@@ -2995,7 +2988,7 @@ bool GUI_App::on_init_inner()
             // Enable all substitutions (in both user and system profiles), but log the substitutions in user profiles only.
             // If there are substitutions in system profiles, then a "reconfigure" event shall be triggered, which will force
             // installation of a compatible system preset, thus nullifying the system preset substitutions.
-            if (scrn) { scrn->SetProgressText(_L("Loading printer & filament profiles") + dots, 30); wxYield(); }
+            if (scrn) { scrn->SetText(_L("Loading printer & filament profiles") + dots, 30); wxYield(); }
             init_params->preset_substitutions = preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSystemSilent);
         }
         catch (const std::exception& ex) {
@@ -3026,7 +3019,7 @@ bool GUI_App::on_init_inner()
 
     if (scrn) {
         const auto scrn_txt = _L("Creating main window") + dots;
-        scrn->SetProgressText(scrn_txt, 70);
+        scrn->SetText(scrn_txt, 70);
         wxYield();
     }
     BOOST_LOG_TRIVIAL(info) << "create the main window";
@@ -3054,7 +3047,7 @@ bool GUI_App::on_init_inner()
             plater_->set_printer_technology(ptFFF);
     }
     else {
-        if (scrn) { scrn->SetProgressText(_L("Loading current preset") + dots, 85); wxYield(); }
+        if (scrn) { scrn->SetText(_L("Loading current preset") + dots, 85); wxYield(); }
         load_current_presets();
     }
 
@@ -3068,10 +3061,10 @@ bool GUI_App::on_init_inner()
 #ifdef __WINDOWS__
     mainframe->topbar()->SaveNormalRect();
 #endif
-    if (scrn) { scrn->SetProgressText(_L("Showing main window") + dots, 95); wxYield(); }
+    if (scrn) { scrn->SetText(_L("Showing main window") + dots, 95); wxYield(); }
     mainframe->Show(true);
     // Close the splash now that the main UI is visible.
-    if (scrn) { scrn->SetProgressText(_L("Showing main window") + dots, 100); scrn->Destroy(); scrn = nullptr; }
+    if (scrn) { scrn->SetText(_L("Showing main window") + dots, 100); scrn->Destroy(); scrn = nullptr; }
     BOOST_LOG_TRIVIAL(info) << "main frame firstly shown";
 
 //#if BBL_HAS_FIRST_PAGE
